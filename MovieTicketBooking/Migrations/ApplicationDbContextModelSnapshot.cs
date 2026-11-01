@@ -84,6 +84,41 @@ namespace MovieTicketBooking.Migrations
                     b.ToTable("Screens", (string)null);
                 });
 
+            modelBuilder.Entity("MovieTicketBooking.Models.Seat", b =>
+                {
+                    b.Property<int>("SeatId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeatId"));
+
+                    b.Property<string>("RowName")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<int>("ScreenId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SeatType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("SeatId");
+
+                    b.HasIndex("ScreenId", "RowName", "SeatNumber")
+                        .IsUnique();
+
+                    b.ToTable("Seats", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Seats_SeatNumber", "[SeatNumber] > 0");
+                        });
+                });
+
             modelBuilder.Entity("MovieTicketBooking.Models.Theatre", b =>
                 {
                     b.Property<int>("TheatreId")
@@ -112,6 +147,15 @@ namespace MovieTicketBooking.Migrations
                     b.HasOne("MovieTicketBooking.Models.Theatre", null)
                         .WithMany()
                         .HasForeignKey("TheatreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MovieTicketBooking.Models.Seat", b =>
+                {
+                    b.HasOne("MovieTicketBooking.Models.Screen", null)
+                        .WithMany()
+                        .HasForeignKey("ScreenId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

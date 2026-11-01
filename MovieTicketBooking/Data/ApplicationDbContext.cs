@@ -17,7 +17,7 @@ namespace MovieTicketBooking.Data
 
         public DbSet<Screen> Screens { get; set; }
 
-
+        public DbSet<Seat> Seats { get; set; }
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
@@ -79,6 +79,45 @@ namespace MovieTicketBooking.Data
                     s.TheatreId,
                     s.ScreenName
                 }).IsUnique();
+            });
+
+            // Seat configuration
+            modelBuilder.Entity<Seat>(entity =>
+            {
+                entity.ToTable("Seats");
+
+                entity.HasKey(s => s.SeatId);
+
+                entity.Property(s => s.RowName)
+                    .IsRequired()
+                    .HasMaxLength(5);
+
+                entity.Property(s => s.SeatNumber)
+                    .IsRequired();
+
+                entity.Property(s => s.SeatType)
+                    .IsRequired()
+                    .HasMaxLength(30);
+
+                // Seat belongs to one Screen
+                entity.HasOne<Screen>()
+                    .WithMany()
+                    .HasForeignKey(s => s.ScreenId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Prevent duplicate seat positions within a screen
+                entity.HasIndex(s => new
+                {
+                    s.ScreenId,
+                    s.RowName,
+                    s.SeatNumber
+                }).IsUnique();
+
+                // Seat number must be greater than zero
+                entity.ToTable(table =>
+                    table.HasCheckConstraint(
+                        "CK_Seats_SeatNumber",
+                        "[SeatNumber] > 0"));
             });
         }
 

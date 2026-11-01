@@ -143,4 +143,48 @@ Base URL: /api/screens
 - Every screen must belong to an existing theatre.
 - Screen names must be unique within a theatre.
 - A theatre can contain multiple screens.
-- A screen cannot be deleted when dependent records exist.
+- A screen cannot be deleted when dependent records
+- exist
+- ## Implementation Progress
+
+| Module | Status |
+|---|---|
+| Movie Management | Completed |
+| Theatre Management | Completed |
+| Screen Management | Completed |
+| Seat Management | Completed |
+| Show Management | Pending |
+| Show Seat Management | Pending |
+| Booking Management | Pending |
+ ## Seat Management API
+
+Base URL: /api/seats
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/seats | Create one seat |
+| POST | /api/seats/bulk | Create multiple seats |
+| GET | /api/seats/screen/{screenId} | Get seats for a screen |
+| GET | /api/seats/{id} | Get seat by ID |
+| PUT | /api/seats/{id} | Update seat |
+| DELETE | /api/seats/{id} | Delete seat |
+
+### Seats Table
+
+| Column | Type | Constraint |
+|---|---|---|
+| SeatId | int | Primary Key, Identity |
+| ScreenId | int | Foreign Key |
+| RowName | nvarchar(5) | Required |
+| SeatNumber | int | Required, Greater than 0 |
+| SeatType | nvarchar(30) | Required |
+
+### Seat Business Rules
+
+- Every seat must belong to an existing screen.
+- Seat number must be greater than zero.
+- A seat position must be unique within a screen.
+- Duplicate positions are checked during individual and bulk creation.
+- Bulk creation must validate all requested positions before saving.
+- A screen cannot be deleted while it contains seats.
+- A seat cannot be deleted when dependent show or booking records exist.
