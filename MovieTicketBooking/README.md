@@ -188,3 +188,39 @@ Base URL: /api/seats
 - Bulk creation must validate all requested positions before saving.
 - A screen cannot be deleted while it contains seats.
 - A seat cannot be deleted when dependent show or booking records exist.
+- ## ShowSeats Management Module
+
+### Features
+
+- View the complete seat layout for a show.
+- View only available seats.
+- View only booked seats.
+- Display physical seat information with availability status.
+- Retrieve ticket price from the associated show.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | /api/shows/{showId}/seats | Get complete seat layout |
+| GET | /api/shows/{showId}/seats/available | Get available seats |
+| GET | /api/shows/{showId}/seats/booked | Get booked seats |
+
+### Response Fields
+
+- SeatId
+- RowName
+- SeatNumber
+- SeatLabel
+- SeatType
+- Price
+- Status
+
+### Business Rules
+
+- A ShowSeat belongs to one particular show.
+- Every show has one ShowSeat record for each physical seat
+  belonging to its screen.
+- Newly generated ShowSeats have Available status.
+- The ticket price is retrieved from the associated Show.
+- Booking operations will update seat status in the Booking module.

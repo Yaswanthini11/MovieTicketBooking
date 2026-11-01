@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Shows;
 using MovieTicketBooking.Services.Interfaces;
 
+
 namespace MovieTicketBooking.Controllers
 {
     [ApiController]
@@ -10,10 +11,14 @@ namespace MovieTicketBooking.Controllers
     public class ShowsController : ControllerBase
     {
         private readonly IShowService _showService;
+        private readonly IShowSeatService _showSeatService;
 
-        public ShowsController(IShowService showService)
+        public ShowsController(
+     IShowService showService,
+     IShowSeatService showSeatService)
         {
             _showService = showService;
+            _showSeatService = showSeatService;
         }
 
         // POST: api/shows
@@ -175,6 +180,84 @@ namespace MovieTicketBooking.Controllers
                     message = "This show cannot be deleted because it has dependent booking records."
                 });
             }
+        }
+        // GET: api/shows/1/seats
+        [HttpGet("{showId:int}/seats")]
+        public async Task<IActionResult> GetShowSeats(int showId)
+        {
+            if (showId <= 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid show ID."
+                });
+            }
+
+            var result = await _showSeatService.GetAllSeatsAsync(showId);
+
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    message = "Show not found."
+                });
+            }
+
+            return Ok(result);
+        }
+
+
+        // GET: api/shows/1/seats/available
+        [HttpGet("{showId:int}/seats/available")]
+        public async Task<IActionResult> GetAvailableSeats(int showId)
+        {
+            if (showId <= 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid show ID."
+                });
+            }
+
+            var result =
+                await _showSeatService.GetAvailableSeatsAsync(showId);
+
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    message = "Show not found."
+                });
+            }
+
+            return Ok(result);
+        }
+
+
+        // GET: api/shows/1/seats/booked
+        [HttpGet("{showId:int}/seats/booked")]
+        public async Task<IActionResult> GetBookedSeats(int showId)
+        {
+            if (showId <= 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Invalid show ID."
+                });
+            }
+
+            var result =
+                await _showSeatService.GetBookedSeatsAsync(showId);
+
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    message = "Show not found."
+                });
+            }
+
+            return Ok(result);
         }
     }
 }
