@@ -224,3 +224,48 @@ Base URL: /api/seats
 - Newly generated ShowSeats have Available status.
 - The ticket price is retrieved from the associated Show.
 - Booking operations will update seat status in the Booking module.
+- ## 7. Booking Management
+
+### Features
+
+- Create bookings for one or multiple seats.
+- Validate show and seat availability.
+- Prevent duplicate seat selection.
+- Calculate booking amount on the backend.
+- Generate unique booking references.
+- Store booking and booking seat details.
+- Update ShowSeats status to Booked.
+- Retrieve booking details.
+- Cancel confirmed bookings.
+- Release seats after cancellation.
+- Preserve cancelled booking history.
+- Use database transactions for booking and cancellation.
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/bookings | Create a booking |
+| GET | /api/bookings/{bookingId} | Get booking details |
+| PUT | /api/bookings/{bookingId}/cancel | Cancel a booking |
+
+### Booking Rules
+
+1. A booking must have a valid ShowId.
+2. At least one seat must be selected.
+3. Duplicate SeatIds are not allowed.
+4. All selected seats must belong to the selected show.
+5. All selected seats must be Available.
+6. The backend calculates the total amount.
+7. Booking and BookingSeats are saved in one transaction.
+8. ShowSeats are updated to Booked.
+9. Only Confirmed bookings can be cancelled.
+10. Cancellation releases seats and preserves booking history.
+
+### Transaction Handling
+
+Booking creation and cancellation use database transactions.
+
+If an operation fails, the transaction is rolled back to prevent partial updates.
+
+Version 1 does not include advanced concurrency protection for simultaneous booking requests.
