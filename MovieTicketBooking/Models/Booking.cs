@@ -22,5 +22,9 @@
 
         public ICollection<BookingSeat> BookingSeats { get; set; }
             = new List<BookingSeat>();
+
+        public string? ApplicationUserId { get; set; }
+
+        public ApplicationUser? User { get; set; }
     }
 }

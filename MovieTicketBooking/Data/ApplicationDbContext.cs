@@ -1,10 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.Models;
-using System.Reflection.Emit;
 
 namespace MovieTicketBooking.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options)
@@ -12,25 +13,23 @@ namespace MovieTicketBooking.Data
         {
         }
 
+        // Existing application tables
         public DbSet<Movie> Movies { get; set; }
         public DbSet<Theatre> Theatres { get; set; }
-
         public DbSet<Screen> Screens { get; set; }
-
         public DbSet<Seat> Seats { get; set; }
-
         public DbSet<Show> Shows { get; set; }
-
         public DbSet<ShowSeat> ShowSeats { get; set; }
-
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<BookingSeat> BookingSeats { get; set; }
 
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
+            // Configure ASP.NET Core Identity tables
             base.OnModelCreating(modelBuilder);
 
+            // Movie configuration
             modelBuilder.Entity<Movie>(entity =>
             {
                 entity.HasKey(m => m.MovieId);
@@ -50,6 +49,8 @@ namespace MovieTicketBooking.Data
                     .IsRequired()
                     .HasMaxLength(50);
             });
+
+            // Theatre configuration
             modelBuilder.Entity<Theatre>(entity =>
             {
                 entity.ToTable("Theatres");
@@ -57,14 +58,15 @@ namespace MovieTicketBooking.Data
                 entity.HasKey(t => t.TheatreId);
 
                 entity.Property(t => t.Name)
-                      .IsRequired()
-                      .HasMaxLength(150);
+                    .IsRequired()
+                    .HasMaxLength(150);
 
                 entity.Property(t => t.Location)
-                      .IsRequired()
-                      .HasMaxLength(200);
+                    .IsRequired()
+                    .HasMaxLength(200);
             });
 
+            // Screen configuration
             modelBuilder.Entity<Screen>(entity =>
             {
                 entity.ToTable("Screens");
@@ -75,13 +77,11 @@ namespace MovieTicketBooking.Data
                     .IsRequired()
                     .HasMaxLength(50);
 
-                // Screen belongs to a Theatre
                 entity.HasOne<Theatre>()
                     .WithMany()
                     .HasForeignKey(s => s.TheatreId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Screen names must be unique within a theatre
                 entity.HasIndex(s => new
                 {
                     s.TheatreId,
@@ -107,13 +107,11 @@ namespace MovieTicketBooking.Data
                     .IsRequired()
                     .HasMaxLength(30);
 
-                // Seat belongs to one Screen
                 entity.HasOne<Screen>()
                     .WithMany()
                     .HasForeignKey(s => s.ScreenId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // Prevent duplicate seat positions within a screen
                 entity.HasIndex(s => new
                 {
                     s.ScreenId,
@@ -121,13 +119,13 @@ namespace MovieTicketBooking.Data
                     s.SeatNumber
                 }).IsUnique();
 
-                // Seat number must be greater than zero
                 entity.ToTable(table =>
                     table.HasCheckConstraint(
                         "CK_Seats_SeatNumber",
                         "[SeatNumber] > 0"));
             });
 
+            // Show configuration
             modelBuilder.Entity<Show>(entity =>
             {
                 entity.ToTable("Shows", table =>
@@ -163,9 +161,14 @@ namespace MovieTicketBooking.Data
                     .HasForeignKey(s => s.ScreenId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasIndex(s => new { s.ScreenId, s.StartTime });
+                entity.HasIndex(s => new
+                {
+                    s.ScreenId,
+                    s.StartTime
+                });
             });
 
+            // ShowSeat configuration
             modelBuilder.Entity<ShowSeat>(entity =>
             {
                 entity.ToTable("ShowSeats");
@@ -186,10 +189,14 @@ namespace MovieTicketBooking.Data
                     .HasForeignKey(s => s.SeatId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasIndex(s => new { s.ShowId, s.SeatId })
-                    .IsUnique();
+                entity.HasIndex(s => new
+                {
+                    s.ShowId,
+                    s.SeatId
+                }).IsUnique();
             });
 
+            // Booking configuration
             modelBuilder.Entity<Booking>(entity =>
             {
                 entity.ToTable("Bookings", table =>
@@ -230,17 +237,28 @@ namespace MovieTicketBooking.Data
                     .IsRequired()
                     .HasMaxLength(20);
 
+                // Booking belongs to one Show
                 entity.HasOne<Show>()
                     .WithMany()
                     .HasForeignKey(b => b.ShowId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                // Booking contains multiple BookingSeats
                 entity.HasMany(b => b.BookingSeats)
                     .WithOne()
                     .HasForeignKey(bs => bs.BookingId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                // Booking belongs to an Identity user.
+                // Nullable to preserve existing bookings.
+                entity.HasOne(b => b.User)
+                    .WithMany()
+                    .HasForeignKey(b => b.ApplicationUserId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // BookingSeat configuration
             modelBuilder.Entity<BookingSeat>(entity =>
             {
                 entity.ToTable("BookingSeats", table =>
@@ -261,6 +279,5 @@ namespace MovieTicketBooking.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
         }
-
     }
 }
