@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Seats;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using MovieTicketBooking.Constants;
 
 namespace MovieTicketBooking.Controllers
 {
@@ -18,6 +20,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/seats
         [HttpPost]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<SeatResponse>> CreateSeat(
             CreateSeatRequest request)
         {
@@ -49,6 +52,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/seats/bulk
         [HttpPost("bulk")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<List<SeatResponse>>>
             CreateSeatsBulk(BulkCreateSeatsRequest request)
         {
@@ -79,6 +83,7 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/seats/screen/1
         [HttpGet("screen/{screenId}")]
+        [AllowAnonymous]
         public async Task<ActionResult<List<SeatResponse>>>
             GetSeatsByScreen(int screenId)
         {
@@ -110,6 +115,7 @@ namespace MovieTicketBooking.Controllers
 
         // PUT: api/seats/1
         [HttpPut("{id}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<SeatResponse>> UpdateSeat(
             int id,
             UpdateSeatRequest request)
@@ -139,6 +145,7 @@ namespace MovieTicketBooking.Controllers
 
         // DELETE: api/seats/1
         [HttpDelete("{id}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> DeleteSeat(int id)
         {
             try

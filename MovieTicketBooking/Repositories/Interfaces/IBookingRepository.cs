@@ -19,5 +19,8 @@ namespace MovieTicketBooking.Repositories.Interfaces
         Task<Booking?> GetByIdAsync(int bookingId);
 
         Task<Booking?> CancelBookingAsync(int bookingId);
+
+        // Get all bookings belonging to a particular customer.
+        Task<List<Booking>> GetBookingsByUserIdAsync(string userId);
     }
 }

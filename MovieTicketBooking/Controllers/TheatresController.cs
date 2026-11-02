@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Theatres;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using MovieTicketBooking.Constants;
 
 namespace MovieTicketBooking.Controllers
 {
@@ -18,6 +20,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/theatres
         [HttpPost]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<TheatreResponse>> CreateTheatre(
             CreateTheatreRequest request)
         {
@@ -32,6 +35,7 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/theatres
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<List<TheatreResponse>>> GetAllTheatres()
         {
             var theatres = await _theatreService.GetAllAsync();
@@ -55,6 +59,7 @@ namespace MovieTicketBooking.Controllers
 
         // PUT: api/theatres/{id}
         [HttpPut("{id}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<TheatreResponse>> UpdateTheatre(
             int id,
             UpdateTheatreRequest request)
@@ -71,6 +76,7 @@ namespace MovieTicketBooking.Controllers
 
         // DELETE: api/theatres/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> DeleteTheatre(int id)
         {
             try

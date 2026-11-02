@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Screens;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using MovieTicketBooking.Constants;
 
 namespace MovieTicketBooking.Controllers
 {
@@ -18,6 +20,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/screens
         [HttpPost]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<ActionResult<ScreenResponse>> CreateScreen(
             CreateScreenRequest request)
         {

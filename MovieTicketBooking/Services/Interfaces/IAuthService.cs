@@ -1,6 +1,11 @@
-﻿namespace MovieTicketBooking.Services.Interfaces
+﻿using MovieTicketBooking.DTOs.Auth;
+
+namespace MovieTicketBooking.Services.Interfaces
 {
-    public class IAuthService
+    public interface IAuthService
     {
+        Task<AuthResponse> RegisterAsync(RegisterRequest request);
+
+        Task<AuthResponse> LoginAsync(LoginRequest request);
     }
 }

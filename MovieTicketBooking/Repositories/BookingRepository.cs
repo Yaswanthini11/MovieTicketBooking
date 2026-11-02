@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.Data;
 using MovieTicketBooking.Models;
 using MovieTicketBooking.Repositories.Interfaces;
@@ -91,6 +92,18 @@ namespace MovieTicketBooking.Repositories
                 .Include(b => b.BookingSeats)
                 .ThenInclude(bs => bs.Seat)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+        }
+
+        // Get bookings belonging to a particular customer.
+        public async Task<List<Booking>> GetBookingsByUserIdAsync(
+            string userId)
+        {
+            return await _context.Bookings
+                .Where(b => b.ApplicationUserId == userId)
+                .Include(b => b.BookingSeats)
+                .ThenInclude(bs => bs.Seat)
+                .OrderByDescending(b => b.BookingDate)
+                .ToListAsync();
         }
 
         public async Task<Booking?> CancelBookingAsync(int bookingId)

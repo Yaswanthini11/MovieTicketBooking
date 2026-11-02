@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Shows;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using MovieTicketBooking.Constants;
 
 
 namespace MovieTicketBooking.Controllers
@@ -23,6 +25,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/shows
         [HttpPost]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> CreateShow(
             CreateShowRequest request)
         {
@@ -50,6 +53,7 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows?date=2026-11-01&movieId=1&theatreId=1
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll(
             [FromQuery] DateTime? date,
             [FromQuery] int? movieId,
@@ -75,6 +79,7 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/1
         [HttpGet("{id:int}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var result = await _showService.GetByIdAsync(id);
@@ -89,6 +94,8 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/movie/1
         [HttpGet("movie/{movieId:int}")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetByMovie(int movieId)
         {
             if (movieId <= 0)
@@ -103,6 +110,8 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/theatre/1
         [HttpGet("theatre/{theatreId:int}")]
+
+        [AllowAnonymous]
         public async Task<IActionResult> GetByTheatre(int theatreId)
         {
             if (theatreId <= 0)
@@ -117,6 +126,7 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/search?date=2026-11-01
         [HttpGet("search")]
+        [AllowAnonymous]
         public async Task<IActionResult> SearchByDate(
             [FromQuery] DateTime date)
         {
@@ -130,6 +140,7 @@ namespace MovieTicketBooking.Controllers
 
         // PUT: api/shows/1
         [HttpPut("{id:int}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> UpdateShow(
             int id,
             UpdateShowRequest request)
@@ -160,6 +171,7 @@ namespace MovieTicketBooking.Controllers
 
         // DELETE: api/shows/1
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> DeleteShow(int id)
         {
             try
@@ -183,6 +195,7 @@ namespace MovieTicketBooking.Controllers
         }
         // GET: api/shows/1/seats
         [HttpGet("{showId:int}/seats")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetShowSeats(int showId)
         {
             if (showId <= 0)
@@ -209,6 +222,8 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/1/seats/available
         [HttpGet("{showId:int}/seats/available")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetAvailableSeats(int showId)
         {
             if (showId <= 0)
@@ -236,6 +251,8 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/shows/1/seats/booked
         [HttpGet("{showId:int}/seats/booked")]
+
+        [AllowAnonymous]
         public async Task<IActionResult> GetBookedSeats(int showId)
         {
             if (showId <= 0)

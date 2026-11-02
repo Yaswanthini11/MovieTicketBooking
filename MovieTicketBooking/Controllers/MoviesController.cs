@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using MovieTicketBooking.DTOs.Movies;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using MovieTicketBooking.Constants;
 
 namespace MovieTicketBooking.Controllers
 {
@@ -18,6 +20,7 @@ namespace MovieTicketBooking.Controllers
 
         // POST: api/movies
         [HttpPost]
+        [Authorize(Roles = UserRoles.Admin)]
         public async Task<IActionResult> CreateMovie(
             CreateMovieRequest request)
         {
@@ -31,6 +34,8 @@ namespace MovieTicketBooking.Controllers
 
         // GET: api/movies
         [HttpGet]
+        [AllowAnonymous]
+       
         public async Task<IActionResult> GetAllMovies()
         {
             var result = await _service.GetAllAsync();

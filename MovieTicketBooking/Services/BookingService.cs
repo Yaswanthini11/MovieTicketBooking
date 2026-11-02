@@ -1,33 +1,33 @@
-﻿using MovieTicketBooking.DTOs.Bookings;
+﻿
+using MovieTicketBooking.DTOs.Bookings;
 using MovieTicketBooking.Models;
 using MovieTicketBooking.Repositories.Interfaces;
 using MovieTicketBooking.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
 namespace MovieTicketBooking.Services
 {
     public class BookingService : IBookingService
     {
         private readonly IBookingRepository _bookingRepository;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public BookingService(IBookingRepository bookingRepository)
+        public BookingService(
+            IBookingRepository bookingRepository,
+            UserManager<ApplicationUser> userManager)
         {
             _bookingRepository = bookingRepository;
+            _userManager = userManager;
         }
 
+        // Create a booking for the authenticated customer.
         public async Task<BookingResponse> CreateBookingAsync(
-            CreateBookingRequest request)
+            CreateBookingRequest request,
+            string userId)
         {
             if (request.ShowId <= 0)
             {
                 throw new ArgumentException("Invalid show ID.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.CustomerName) ||
-                string.IsNullOrWhiteSpace(request.CustomerEmail) ||
-                string.IsNullOrWhiteSpace(request.CustomerPhone))
-            {
-                throw new ArgumentException(
-                    "Customer name, email and phone are required.");
             }
 
             if (request.SeatIds == null || request.SeatIds.Count == 0)
@@ -48,6 +48,27 @@ namespace MovieTicketBooking.Services
                     "Duplicate seat IDs are not allowed.");
             }
 
+            // Retrieve the logged-in customer from Identity.
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                throw new KeyNotFoundException(
+                    "Customer account not found.");
+            }
+
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                throw new InvalidOperationException(
+                    "Customer email is not available.");
+            }
+
+            if (string.IsNullOrWhiteSpace(user.PhoneNumber))
+            {
+                throw new InvalidOperationException(
+                    "Customer phone number is not available.");
+            }
+
             bool showExists =
                 await _bookingRepository.ShowExistsAsync(request.ShowId);
 
@@ -57,7 +78,8 @@ namespace MovieTicketBooking.Services
             }
 
             decimal? ticketPrice =
-                await _bookingRepository.GetShowTicketPriceAsync(request.ShowId);
+                await _bookingRepository.GetShowTicketPriceAsync(
+                    request.ShowId);
 
             if (ticketPrice == null)
             {
@@ -76,7 +98,8 @@ namespace MovieTicketBooking.Services
             }
 
             // Each seat has the show's ticket price in Version 1.
-            decimal totalAmount = ticketPrice.Value * request.SeatIds.Count;
+            decimal totalAmount =
+                ticketPrice.Value * request.SeatIds.Count;
 
             var booking = new Booking
             {
@@ -85,11 +108,15 @@ namespace MovieTicketBooking.Services
 
                 ShowId = request.ShowId,
 
-                CustomerName = request.CustomerName.Trim(),
+                // Link the booking to the authenticated customer.
+                ApplicationUserId = user.Id,
 
-                CustomerEmail = request.CustomerEmail.Trim(),
+                // Customer details come from the Identity account.
+                CustomerName = user.FullName.Trim(),
 
-                CustomerPhone = request.CustomerPhone.Trim(),
+                CustomerEmail = user.Email.Trim(),
+
+                CustomerPhone = user.PhoneNumber.Trim(),
 
                 BookingDate = DateTime.UtcNow,
 
@@ -105,6 +132,7 @@ namespace MovieTicketBooking.Services
                     }).ToList()
             };
 
+            // Preserve the existing repository transaction and seat allocation.
             var createdBooking =
                 await _bookingRepository.CreateBookingAsync(
                     booking,
@@ -113,7 +141,11 @@ namespace MovieTicketBooking.Services
             return MapToResponse(createdBooking);
         }
 
-        public async Task<BookingResponse?> GetByIdAsync(int bookingId)
+        // Retrieve a booking only if the user owns it or is Admin.
+        public async Task<BookingResponse?> GetByIdAsync(
+            int bookingId,
+            string userId,
+            bool isAdmin)
         {
             if (bookingId <= 0)
             {
@@ -128,16 +160,40 @@ namespace MovieTicketBooking.Services
                 return null;
             }
 
+            if (!isAdmin && booking.ApplicationUserId != userId)
+            {
+                return null;
+            }
+
             return MapToResponse(booking);
         }
 
-        public async Task<BookingResponse?> CancelBookingAsync(int bookingId)
+        // Cancel a booking only if the user owns it or is Admin.
+        public async Task<BookingResponse?> CancelBookingAsync(
+            int bookingId,
+            string userId,
+            bool isAdmin)
         {
             if (bookingId <= 0)
             {
                 throw new ArgumentException("Invalid booking ID.");
             }
 
+            // Check ownership before cancelling or releasing seats.
+            var existingBooking =
+                await _bookingRepository.GetByIdAsync(bookingId);
+
+            if (existingBooking == null)
+            {
+                return null;
+            }
+
+            if (!isAdmin && existingBooking.ApplicationUserId != userId)
+            {
+                return null;
+            }
+
+            // Preserve the existing cancellation implementation.
             var booking =
                 await _bookingRepository.CancelBookingAsync(bookingId);
 
@@ -147,6 +203,16 @@ namespace MovieTicketBooking.Services
             }
 
             return MapToResponse(booking);
+        }
+
+        // Retrieve only the bookings belonging to a particular customer.
+        public async Task<IEnumerable<BookingResponse>>
+            GetBookingsByUserIdAsync(string userId)
+        {
+            var bookings =
+                await _bookingRepository.GetBookingsByUserIdAsync(userId);
+
+            return bookings.Select(MapToResponse).ToList();
         }
 
         private static BookingResponse MapToResponse(Booking booking)
