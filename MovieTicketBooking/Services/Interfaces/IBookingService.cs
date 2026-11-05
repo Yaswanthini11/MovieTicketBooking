@@ -1,4 +1,6 @@
-﻿using MovieTicketBooking.DTOs.Bookings;
+﻿
+using MovieTicketBooking.DTOs.Bookings;
+using MovieTicketBooking.Models;
 
 namespace MovieTicketBooking.Services.Interfaces
 {
@@ -8,15 +10,14 @@ namespace MovieTicketBooking.Services.Interfaces
             CreateBookingRequest request,
             string userId);
 
+        Task<Booking?> GetBookingForAuthorizationAsync(
+            int bookingId);
+
         Task<BookingResponse?> GetByIdAsync(
-            int bookingId,
-            string userId,
-            bool isAdmin);
+            int bookingId);
 
         Task<BookingResponse?> CancelBookingAsync(
-            int bookingId,
-            string userId,
-            bool isAdmin);
+            int bookingId);
 
         Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(
             string userId);

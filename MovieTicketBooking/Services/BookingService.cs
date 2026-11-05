@@ -1,9 +1,9 @@
 ﻿
+using Microsoft.AspNetCore.Identity;
 using MovieTicketBooking.DTOs.Bookings;
 using MovieTicketBooking.Models;
 using MovieTicketBooking.Repositories.Interfaces;
 using MovieTicketBooking.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
 
 namespace MovieTicketBooking.Services
 {
@@ -20,119 +20,78 @@ namespace MovieTicketBooking.Services
             _userManager = userManager;
         }
 
-        // Create a booking for the authenticated customer.
+        // 1. Create a new booking
         public async Task<BookingResponse> CreateBookingAsync(
             CreateBookingRequest request,
             string userId)
         {
             if (request.ShowId <= 0)
-            {
                 throw new ArgumentException("Invalid show ID.");
-            }
 
-            if (request.SeatIds == null || request.SeatIds.Count == 0)
-            {
-                throw new ArgumentException(
-                    "Select at least one seat.");
-            }
+            if (request.SeatIds == null || !request.SeatIds.Any())
+                throw new ArgumentException("Please select at least one seat.");
 
             if (request.SeatIds.Any(id => id <= 0))
-            {
-                throw new ArgumentException(
-                    "Seat IDs must be greater than zero.");
-            }
+                throw new ArgumentException("Invalid seat ID.");
 
             if (request.SeatIds.Distinct().Count() != request.SeatIds.Count)
-            {
-                throw new ArgumentException(
-                    "Duplicate seat IDs are not allowed.");
-            }
+                throw new ArgumentException("Duplicate seats are not allowed.");
 
-            // Retrieve the logged-in customer from Identity.
+            // Get the logged-in customer
             var user = await _userManager.FindByIdAsync(userId);
 
             if (user == null)
-            {
-                throw new KeyNotFoundException(
-                    "Customer account not found.");
-            }
+                throw new InvalidOperationException("User not found.");
 
-            if (string.IsNullOrWhiteSpace(user.Email))
+            if (string.IsNullOrWhiteSpace(user.Email) ||
+                string.IsNullOrWhiteSpace(user.PhoneNumber))
             {
                 throw new InvalidOperationException(
-                    "Customer email is not available.");
+                    "Customer email and phone number are required.");
             }
 
-            if (string.IsNullOrWhiteSpace(user.PhoneNumber))
-            {
-                throw new InvalidOperationException(
-                    "Customer phone number is not available.");
-            }
-
-            bool showExists =
-                await _bookingRepository.ShowExistsAsync(request.ShowId);
+            // Check whether the show exists
+            var showExists = await _bookingRepository.ShowExistsAsync(
+                request.ShowId);
 
             if (!showExists)
-            {
-                throw new KeyNotFoundException("Show not found.");
-            }
+                throw new ArgumentException("Show not found.");
 
-            decimal? ticketPrice =
-                await _bookingRepository.GetShowTicketPriceAsync(
-                    request.ShowId);
+            // Get ticket price
+            var ticketPrice = await _bookingRepository.GetShowTicketPriceAsync(
+                request.ShowId);
 
             if (ticketPrice == null)
-            {
-                throw new KeyNotFoundException("Show not found.");
-            }
+                throw new InvalidOperationException(
+                    "Unable to retrieve ticket price.");
 
+            // Check seat availability
             var availableSeats =
                 await _bookingRepository.GetAvailableShowSeatsAsync(
                     request.ShowId,
                     request.SeatIds);
 
             if (availableSeats.Count != request.SeatIds.Count)
-            {
                 throw new InvalidOperationException(
-                    "One or more selected seats are invalid or already booked.");
-            }
+                    "One or more selected seats are unavailable.");
 
-            // Each seat has the show's ticket price in Version 1.
-            decimal totalAmount =
-                ticketPrice.Value * request.SeatIds.Count;
+            // Calculate total amount
+            decimal totalAmount = ticketPrice.Value * request.SeatIds.Count;
 
+            // Create booking object
             var booking = new Booking
             {
-                BookingReference = "BK" +
-                    Guid.NewGuid().ToString("N")[..20].ToUpper(),
-
                 ShowId = request.ShowId,
-
-                // Link the booking to the authenticated customer.
                 ApplicationUserId = user.Id,
-
-                // Customer details come from the Identity account.
-                CustomerName = user.FullName.Trim(),
-
-                CustomerEmail = user.Email.Trim(),
-
-                CustomerPhone = user.PhoneNumber.Trim(),
-
-                BookingDate = DateTime.UtcNow,
-
+                CustomerName = user.FullName,
+                CustomerEmail = user.Email,
+                CustomerPhone = user.PhoneNumber,
+                BookingDate = DateTime.Now,
                 TotalAmount = totalAmount,
-
-                Status = BookingStatus.Confirmed,
-
-                BookingSeats = availableSeats.Select(seat =>
-                    new BookingSeat
-                    {
-                        SeatId = seat.SeatId,
-                        Price = ticketPrice.Value
-                    }).ToList()
+                Status = BookingStatus.Confirmed
             };
 
-            // Preserve the existing repository transaction and seat allocation.
+            // Save booking and allocate seats
             var createdBooking =
                 await _bookingRepository.CreateBookingAsync(
                     booking,
@@ -141,80 +100,56 @@ namespace MovieTicketBooking.Services
             return MapToResponse(createdBooking);
         }
 
-        // Retrieve a booking only if the user owns it or is Admin.
-        public async Task<BookingResponse?> GetByIdAsync(
-            int bookingId,
-            string userId,
-            bool isAdmin)
+        // 2. Get the actual booking entity for authorization
+        public async Task<Booking?> GetBookingForAuthorizationAsync(
+            int bookingId)
         {
             if (bookingId <= 0)
-            {
                 throw new ArgumentException("Invalid booking ID.");
-            }
 
-            var booking =
-                await _bookingRepository.GetByIdAsync(bookingId);
+            return await _bookingRepository.GetByIdAsync(bookingId);
+        }
+
+        // 3. Get booking details after authorization succeeds
+        public async Task<BookingResponse?> GetByIdAsync(int bookingId)
+        {
+            if (bookingId <= 0)
+                throw new ArgumentException("Invalid booking ID.");
+
+            var booking = await _bookingRepository.GetByIdAsync(bookingId);
 
             if (booking == null)
-            {
                 return null;
-            }
-
-            if (!isAdmin && booking.ApplicationUserId != userId)
-            {
-                return null;
-            }
 
             return MapToResponse(booking);
         }
 
-        // Cancel a booking only if the user owns it or is Admin.
-        public async Task<BookingResponse?> CancelBookingAsync(
-            int bookingId,
-            string userId,
-            bool isAdmin)
+        // 4. Cancel booking after authorization succeeds
+        public async Task<BookingResponse?> CancelBookingAsync(int bookingId)
         {
             if (bookingId <= 0)
-            {
                 throw new ArgumentException("Invalid booking ID.");
-            }
 
-            // Check ownership before cancelling or releasing seats.
-            var existingBooking =
-                await _bookingRepository.GetByIdAsync(bookingId);
-
-            if (existingBooking == null)
-            {
-                return null;
-            }
-
-            if (!isAdmin && existingBooking.ApplicationUserId != userId)
-            {
-                return null;
-            }
-
-            // Preserve the existing cancellation implementation.
             var booking =
                 await _bookingRepository.CancelBookingAsync(bookingId);
 
             if (booking == null)
-            {
                 return null;
-            }
 
             return MapToResponse(booking);
         }
 
-        // Retrieve only the bookings belonging to a particular customer.
-        public async Task<IEnumerable<BookingResponse>>
-            GetBookingsByUserIdAsync(string userId)
+        // 5. Get all bookings belonging to the logged-in customer
+        public async Task<IEnumerable<BookingResponse>> GetBookingsByUserIdAsync(
+            string userId)
         {
             var bookings =
                 await _bookingRepository.GetBookingsByUserIdAsync(userId);
 
-            return bookings.Select(MapToResponse).ToList();
+            return bookings.Select(MapToResponse);
         }
 
+        // 6. Convert Booking entity into BookingResponse DTO
         private static BookingResponse MapToResponse(Booking booking)
         {
             return new BookingResponse

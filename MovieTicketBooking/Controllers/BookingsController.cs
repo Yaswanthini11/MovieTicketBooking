@@ -2,9 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+
 using MovieTicketBooking.DTOs.Bookings;
 using MovieTicketBooking.Services.Interfaces;
 using MovieTicketBooking.Constants;
+using MovieTicketBooking.Authorization;
+
 using System.Security.Claims;
 
 namespace MovieTicketBooking.Controllers
@@ -14,10 +17,14 @@ namespace MovieTicketBooking.Controllers
     public class BookingsController : ControllerBase
     {
         private readonly IBookingService _bookingService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public BookingsController(IBookingService bookingService)
+        public BookingsController(
+            IBookingService bookingService,
+            IAuthorizationService authorizationService)
         {
             _bookingService = bookingService;
+            _authorizationService = authorizationService;
         }
 
         // POST: api/bookings
@@ -88,27 +95,26 @@ namespace MovieTicketBooking.Controllers
         }
 
         // GET: api/bookings/1
-        // Customers can view their own booking.
+        // Customers can view their own bookings.
         // Admins can view any booking.
         [HttpGet("{bookingId:int}")]
         [Authorize]
         public async Task<IActionResult> GetBookingById(int bookingId)
         {
-            var userId = User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrEmpty(userId))
+            if (bookingId <= 0)
             {
-                return Unauthorized();
+                return BadRequest(new
+                {
+                    message = "Invalid booking ID."
+                });
             }
-
-            var isAdmin = User.IsInRole(UserRoles.Admin);
 
             try
             {
+                // Retrieve the actual Booking entity.
                 var booking =
-                    await _bookingService.GetByIdAsync(
-                        bookingId, userId, isAdmin);
+                    await _bookingService.GetBookingForAuthorizationAsync(
+                        bookingId);
 
                 if (booking == null)
                 {
@@ -118,7 +124,34 @@ namespace MovieTicketBooking.Controllers
                     });
                 }
 
-                return Ok(booking);
+                // Check booking ownership using custom authorization.
+                var authorizationResult =
+                    await _authorizationService.AuthorizeAsync(
+                        User,
+                        booking,
+                        "BookingOwnerPolicy");
+
+                if (!authorizationResult.Succeeded)
+                {
+                    return NotFound(new
+                    {
+                        message = "Booking not found."
+                    });
+                }
+
+                // Return the BookingResponse DTO.
+                var response =
+                    await _bookingService.GetByIdAsync(bookingId);
+
+                if (response == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Booking not found."
+                    });
+                }
+
+                return Ok(response);
             }
             catch (ArgumentException ex)
             {
@@ -133,21 +166,20 @@ namespace MovieTicketBooking.Controllers
         [Authorize]
         public async Task<IActionResult> CancelBooking(int bookingId)
         {
-            var userId = User.FindFirstValue(
-                ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrEmpty(userId))
+            if (bookingId <= 0)
             {
-                return Unauthorized();
+                return BadRequest(new
+                {
+                    message = "Invalid booking ID."
+                });
             }
-
-            var isAdmin = User.IsInRole(UserRoles.Admin);
 
             try
             {
+                // Retrieve the booking before cancellation.
                 var booking =
-                    await _bookingService.CancelBookingAsync(
-                        bookingId, userId, isAdmin);
+                    await _bookingService.GetBookingForAuthorizationAsync(
+                        bookingId);
 
                 if (booking == null)
                 {
@@ -157,7 +189,34 @@ namespace MovieTicketBooking.Controllers
                     });
                 }
 
-                return Ok(booking);
+                // Authorize the current user against this booking.
+                var authorizationResult =
+                    await _authorizationService.AuthorizeAsync(
+                        User,
+                        booking,
+                        "BookingOwnerPolicy");
+
+                if (!authorizationResult.Succeeded)
+                {
+                    return NotFound(new
+                    {
+                        message = "Booking not found."
+                    });
+                }
+
+                // Ownership is verified. Now perform cancellation.
+                var response =
+                    await _bookingService.CancelBookingAsync(bookingId);
+
+                if (response == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Booking not found."
+                    });
+                }
+
+                return Ok(response);
             }
             catch (ArgumentException ex)
             {
@@ -177,3 +236,4 @@ namespace MovieTicketBooking.Controllers
         }
     }
 }
+ 

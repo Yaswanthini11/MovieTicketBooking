@@ -1,17 +1,18 @@
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-
+using MovieTicketBooking.Authorization;
 using MovieTicketBooking.Data;
+using MovieTicketBooking.Middleware;
+using MovieTicketBooking.Models;
 using MovieTicketBooking.Repositories;
 using MovieTicketBooking.Repositories.Interfaces;
 using MovieTicketBooking.Services;
 using MovieTicketBooking.Services.Interfaces;
-using MovieTicketBooking.Constants;
-using MovieTicketBooking.Models;
-
+using Scalar.AspNetCore;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,7 +44,6 @@ builder.Services
 
 // 4. Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-
 var jwtKey = jwtSettings["Key"];
 
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
@@ -84,7 +84,16 @@ builder.Services
     });
 
 // 5. Configure Authorization
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("BookingOwnerPolicy", policy =>
+    {
+        policy.Requirements.Add(new BookingOwnerRequirement());
+    });
+});
+
+// Register custom authorization handler
+builder.Services.AddScoped<IAuthorizationHandler, BookingOwnerHandler>();
 
 // 6. Register Movie repository and service
 builder.Services.AddScoped<IMovieRepository, MovieRepository>();
@@ -117,21 +126,58 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 // 13. Register Authentication service
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// 14. Build application
+// 14. Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// 15. Build application
 var app = builder.Build();
 
-// 15. Seed Identity roles and Admin account
-await DbSeeder.SeedAsync(app.Services, app.Configuration);
-
-// 16. Configure middleware
+// 16. HTTPS Redirection
 app.UseHttpsRedirection();
 
+// 17. Routing
+// Explicit routing is used so endpoint metadata is available
+// to the diagnostic middleware.
+app.UseRouting();
+
+// 18. Endpoint Metadata Diagnostics
+if (app.Environment.IsDevelopment())
+{
+    app.UseMiddleware<EndpointMetadataMiddleware>();
+}
+
+// 19. CORS
+app.UseCors("AllowAngular");
+
+// 20. Authentication
+// Validates JWT and populates HttpContext.User
 app.UseAuthentication();
 
+// 21. Authentication and Authorization Diagnostics
+if (app.Environment.IsDevelopment())
+{
+    app.UseMiddleware<AuthenticationDiagnosticsMiddleware>();
+
+    app.UseMiddleware<AuthorizationDiagnosticsMiddleware>();
+}
+
+// 22. Authorization
+// Checks endpoint access permissions
 app.UseAuthorization();
 
-// 17. Map controllers
+// 23. Seed Identity roles and Admin account
+await DbSeeder.SeedAsync(app.Services, app.Configuration);
+
+// 24. Map controllers
 app.MapControllers();
 
-// 18. Run application
+// 25. Run application
 app.Run();

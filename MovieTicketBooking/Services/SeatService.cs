@@ -52,7 +52,7 @@ namespace MovieTicketBooking.Services
             var createdSeat =
                 await _seatRepository.AddAsync(seat);
 
-            return MapToResponse(createdSeat);
+            return MapToResponse(createdSeat); 
         }
 
         // Bulk create seats
